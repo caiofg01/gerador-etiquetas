@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Etiquetas para Impressão</title>
+    <!-- Importação da biblioteca jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --background: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: var(--card);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 480px;
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        input[type="number"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        .row {
+            display: flex;
+            gap: 16px;
+        }
+        .row .form-group {
+            flex: 1;
+        }
+        button {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 8px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        .helper-text {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 4px;
+            display: block;
+        }
+        #avisoProporcao {
+            display: none;
+            color: #059669;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Criar Folha de Etiquetas</h1>
+    <form id="geradorForm">
+        <div class="form-group">
+            <label for="imagem">Imagem da Etiqueta</label>
+            <input type="file" id="imagem" accept="image/png, image/jpeg, image/jpg" required>
+            <div id="avisoProporcao">✔ Proporção da imagem detectada e travada.</div>
+        </div>
+
+        <div class="row">
+            <div class="form-group">
+                <label for="largura">Largura (cm)</label>
+                <input type="number" id="largura" step="0.1" min="0.5" value="4.0" required>
+            </div>
+            <div class="form-group">
+                <label for="altura">Altura (cm)</label>
+                <input type="number" id="altura" step="0.1" min="0.5" value="4.0" required>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="form-group">
+                <label for="espacamento">Espaçamento (cm)</label>
+                <input type="number" id="espacamento" step="0.1" min="0" value="0.2" required>
+                <span class="helper-text">Entre as etiquetas.</span>
+            </div>
+            <div class="form-group">
+                <label for="margem">Margem da folha (cm)</label>
+                <input type="number" id="margem" step="0.1" min="0" value="0.5" required>
+                <span class="helper-text">Borda da impressora.</span>
+            </div>
+        </div>
+
+        <button type="submit" id="btnGerar">Gerar PDF para Impressão</button>
+    </form>
+</div>
+
+<script>
+    // Variável global para armazenar a proporção da imagem carregada
+    let proporcaoImagem = null;
+    
+    const fileInput = document.getElementById('imagem');
+    const inputLargura = document.getElementById('largura');
+    const inputAltura = document.getElementById('altura');
+    const avisoProporcao = document.getElementById('avisoProporcao');
+
+    // 1. Ler a imagem quando for anexada para descobrir a proporção
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                // Calcula a proporção (Altura / Largura)
+                proporcaoImagem = img.naturalHeight / img.naturalWidth;
+                
+                // Ajusta a altura atual com base na largura atual para bater com a imagem
+                const larguraAtual = parseFloat(inputLargura.value);
+                inputAltura.value = (larguraAtual * proporcaoImagem).toFixed(2);
+                
+                // Mostra o aviso visual
+                avisoProporcao.style.display = 'block';
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // 2. Quando o usuário digitar na Largura, calcula a Altura
+    inputLargura.addEventListener('input', function() {
+        if (proporcaoImagem !== null) {
+            const novaLargura = parseFloat(this.value);
+            if (!isNaN(novaLargura)) {
+                inputAltura.value = (novaLargura * proporcaoImagem).toFixed(2);
+            }
+        }
+    });
+
+    // 3. Quando o usuário digitar na Altura, calcula a Largura
+    inputAltura.addEventListener('input', function() {
+        if (proporcaoImagem !== null) {
+            const novaAltura = parseFloat(this.value);
+            if (!isNaN(novaAltura)) {
+                inputLargura.value = (novaAltura / proporcaoImagem).toFixed(2);
+            }
+        }
+    });
+
+    // Lógica de geração do PDF continua igual
+    document.getElementById('geradorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('btnGerar');
+        const originalText = btn.innerText;
+        btn.innerText = "Calculando e gerando...";
+        btn.disabled = true;
+
+        const file = fileInput.files[0];
+        
+        const w = parseFloat(inputLargura.value) * 10; 
+        const h = parseFloat(inputAltura.value) * 10;
+        const space = parseFloat(document.getElementById('espacamento').value) * 10;
+        const margin = parseFloat(document.getElementById('margem').value) * 10;
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+            const imgData = event.target.result;
+            const fileType = file.type === 'image/png' ? 'PNG' : 'JPEG';
+            
+            const a4W = 210;
+            const a4H = 297;
+            
+            const usableWP = a4W - (margin * 2);
+            const usableHP = a4H - (margin * 2);
+            const colsP = Math.floor((usableWP + space) / (w + space));
+            const rowsP = Math.floor((usableHP + space) / (h + space));
+            const totalP = colsP * rowsP;
+            
+            const usableWL = a4H - (margin * 2); 
+            const usableHL = a4W - (margin * 2);
+            const colsL = Math.floor((usableWL + space) / (w + space));
+            const rowsL = Math.floor((usableHL + space) / (h + space));
+            const totalL = colsL * rowsL;
+            
+            const isPortrait = totalP >= totalL;
+            const bestCols = isPortrait ? colsP : colsL;
+            const bestRows = isPortrait ? rowsP : rowsL;
+            const orientation = isPortrait ? 'p' : 'l';
+            
+            if (bestCols === 0 || bestRows === 0) {
+                alert('A etiqueta e as margens são grandes demais para caber em uma folha A4.');
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            const blocoW = (bestCols * w) + ((bestCols - 1) * space);
+            const blocoH = (bestRows * h) + ((bestRows - 1) * space);
+            
+            const finalPageW = isPortrait ? a4W : a4H;
+            const finalPageH = isPortrait ? a4H : a4W;
+            
+            const startX = (finalPageW - blocoW) / 2;
+            const startY = (finalPageH - blocoH) / 2;
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: orientation,
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            for (let r = 0; r < bestRows; r++) {
+                for (let c = 0; c < bestCols; c++) {
+                    const x = startX + c * (w + space);
+                    const y = startY + r * (h + space);
+                    doc.addImage(imgData, fileType, x, y, w, h);
+                }
+            }
+            
+            doc.save('etiquetas.pdf');
+            
+            btn.innerText = originalText;
+            btn.disabled = false;
+        };
+        
+        reader.readAsDataURL(file);
+    });
+</script>
+
+</body>
+</html>
